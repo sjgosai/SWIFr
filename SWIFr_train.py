@@ -9,7 +9,7 @@ class AODE_train():
 
 	def __init__(self,args):
 		self.retrain = args.retrain
-
+		self.readpkl = args.readpkl
 		self.path2allstats = args.path2files
 		if self.path2allstats != '' and self.path2allstats[-1] != '/':
 			self.path2allstats += '/'
@@ -64,6 +64,7 @@ class AODE_train():
 	def tuples(self,stat1,stat2,scenario,round1=False):
 		if round1 == False:
 			scores = pickle.load(open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','rb'))
+			print 'reading from PKL: '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
 
 		else:
 			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
@@ -90,6 +91,7 @@ class AODE_train():
 	def singles(self,stat,scenario,round1=False):
 		if round1 == False:
 			scores = pickle.load(open(self.path2AODE+stat+'_'+scenario+'_singles.p','rb'))
+			print 'reading from PKL: '+scenario+' marginal distributions for '+stat+'...'
 		else:
 			print 'learning '+scenario+' marginal distributions for '+stat+'...'
 			scores = []
@@ -159,12 +161,12 @@ class AODE_train():
 	def read_in_all(self):
 		for stat in self.statlist:
 			for scenario in self.scenarios:
-				self.singles(stat,scenario,round1=True)
+				self.singles(stat,scenario,round1=args.readpkl)
 
 		for i in range(len(self.statlist)-1):
 			for j in range(i+1,len(self.statlist)):
 				for scenario in self.scenarios:
-					self.tuples(self.statlist[i],self.statlist[j],scenario,round1=True)
+					self.tuples(self.statlist[i],self.statlist[j],scenario,round1=args.readpkl)
 
 	def run_bic(self):
 		for stat in self.statlist:
@@ -311,6 +313,8 @@ if __name__ == '__main__':
 	from scipy.stats import norm
 	import math,sys,argparse, pickle, os
 	sys.path.append(os.getcwd())	
+	import matplotlib
+	matplotlib.use('agg')
 	from matplotlib import pyplot as plt
 	import numpy as np
 	from sklearn import mixture
@@ -321,6 +325,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--path',action='store',dest='path2files',default='') #path to all input files (simulations in a 'simulations' directory, and compstats, scenarios files)
 	parser.add_argument('--retrain',action='store_true',dest='retrain')
+	parser.add_argument('--readpkl',action='store_false',dest='readpkl')
 	parser.add_argument('--stats2use',action='store',nargs='+',default=[]) #use to split training into parallel runs, only with --retrain
 
 	args = parser.parse_args()
