@@ -63,8 +63,8 @@ class AODE_train():
 
 	def tuples(self,stat1,stat2,scenario,round1=False):
 		if round1 == False:
-			scores = pickle.load(open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','rb'))
 			print 'reading from PKL: '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
+			scores = pickle.load(open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','rb'))
 
 		else:
 			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
@@ -90,8 +90,8 @@ class AODE_train():
 
 	def singles(self,stat,scenario,round1=False):
 		if round1 == False:
-			scores = pickle.load(open(self.path2AODE+stat+'_'+scenario+'_singles.p','rb'))
 			print 'reading from PKL: '+scenario+' marginal distributions for '+stat+'...'
+			scores = pickle.load(open(self.path2AODE+stat+'_'+scenario+'_singles.p','rb'))
 		else:
 			print 'learning '+scenario+' marginal distributions for '+stat+'...'
 			scores = []
