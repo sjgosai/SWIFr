@@ -10,6 +10,7 @@ class AODE_train():
 	def __init__(self,args):
 		self.retrain = args.retrain
 		self.readpkl = args.readpkl
+		self.savepkl = args.savepkl
 		self.path2allstats = args.path2files
 		if self.path2allstats != '' and self.path2allstats[-1] != '/':
 			self.path2allstats += '/'
@@ -40,8 +41,8 @@ class AODE_train():
 		else:
 			self.statlist = [x for x in allstats if x in args.stats2use]
 
-		self.minscores = [[] for i in range(len(self.statlist))]
-		self.maxscores = [[] for i in range(len(self.statlist))]
+		self.minscores = [[np.nan] for i in range(len(self.statlist))]
+		self.maxscores = [[np.nan] for i in range(len(self.statlist))]
 
 		self.num2stat = {i:self.statlist[i] for i in range(len(self.statlist))}
 		self.stat2num = {y:x for x,y in self.num2stat.items()}		
@@ -58,68 +59,43 @@ class AODE_train():
 			os.mkdir(self.path2files+'component_statistic_distributions')
 			os.mkdir(self.path2files+'component_statistic_distributions/marginals')
 			os.mkdir(self.path2files+'component_statistic_distributions/joints')
-		self.read_in_all()
+		if self.readpkl == False:
+			self.read_in_all()
 
 
-	def tuples(self,stat1,stat2,scenario,round1=False):
-		if round1 == False:
+	def tuples(self,stat1,stat2,scenario,from_pkl=False,save_pkl=False):
+		if from_pkl == True:
 			print 'reading from PKL: '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
-			scores = pickle.load(open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','rb'))
-
+			scores = pd.read_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
 		else:
 			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
 			scores = []
-
-			for filename in os.listdir(self.path2allstats+scenario+'/'):
-				if filename[0] != '.':
-					file = open(self.path2allstats+scenario+'/'+filename,'r')
-					f = file.read()
-					file.close()
-					f = f.strip().splitlines()
-					header = f[0].strip().split('\t')
-					f = f[1:]
-					for line in f:
-						line = line.strip().split('\t')
-						score1 = float(line[header.index(stat1)])
-						score2 = float(line[header.index(stat2)])
-						if score1 != -998 and score2 != -998:
-							scores.append((score1,score2))
-
-			pickle.dump(scores,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','wb'))
+			mask   = (self.train_data[scenario][stat1] != -998) & (self.train_data[scenario][stat2] != -998)
+			scores = self.train_data[scenario].loc[mask, (stat1,stat2)]
+			if save_pkl == True:
+				scores.to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
 		return np.array(scores)
 
-	def singles(self,stat,scenario,round1=False):
-		if round1 == False:
+	def singles(self,stat,scenario,from_pkl=False,save_pkl=False):
+		if from_pkl == True:
 			print 'reading from PKL: '+scenario+' marginal distributions for '+stat+'...'
-			scores = pickle.load(open(self.path2AODE+stat+'_'+scenario+'_singles.p','rb'))
+			scores = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
 		else:
-			print 'learning '+scenario+' marginal distributions for '+stat+'...'
-			scores = []
-			for filename in os.listdir(self.path2allstats+scenario+'/'):
-				if filename[0] != '.':
-					file = open(self.path2allstats+scenario+'/'+filename,'r')
-					f = file.read()
-					file.close()
-					f = f.strip().splitlines()
-					header = f[0].strip().split('\t')
-					f = f[1:]
-					for line in f:
-						line = line.strip().split('\t')
-						score = float(line[header.index(stat)])
-						if score != -998:
-							scores.append([score])
-						
-			pickle.dump(scores,open(self.path2AODE+stat+'_'+scenario+'_singles.p','wb'))
-		SCORES = np.array(scores)
+			mask   = self.train_data[scenario][stat] != -998
+			scores = self.train_data[scenario].loc[mask, stat]
+			if save_pkl == True:
+				print 'saving '+scenario+' marginal distributions for '+stat+'...'
+				scores.to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+		SCORES = np.expand_dims(np.array(scores), axis=1)
 		minscore = min(SCORES)[0]
 		maxscore = max(SCORES)[0]
 		RANGE = maxscore-minscore
-		self.minscores[self.stat2num[stat]].append(minscore)
-		self.maxscores[self.stat2num[stat]].append(maxscore)
-		return np.array(scores)
+		self.minscores[self.stat2num[stat]][0] = minscore
+		self.maxscores[self.stat2num[stat]][0] = maxscore
+		return np.expand_dims(np.array(scores), axis=1)
 
 	def plot_bic(self,stat1,stat2,scenario):
-		S = self.tuples(stat1,stat2,scenario)
+		S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
 		BICs_full = []
 		for n in range(1,11):
 			H = mixture.GMM(n_components=n,covariance_type='full')
@@ -139,7 +115,7 @@ class AODE_train():
 		self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic
 
 	def plot_bic_1D(self,stat,scenario):
-		S = self.singles(stat,scenario)
+		S = self.singles(stat,scenario,from_pkl=self.readpkl)
 		BICs = []
 		for n in range(1,11):
 			H = mixture.GMM(n_components=n)
@@ -159,14 +135,22 @@ class AODE_train():
 		self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
 
 	def read_in_all(self):
+		print 'Begin reading all training data'
+		self.train_data = { s_:pd.concat([ pd.read_table(os.path.join(self.path2allstats+s_+'/',f),
+                                                         header=0, index_col=False) 
+                                           for f in os.listdir(self.path2allstats+s_+'/') 
+                                           if f[0] != '.' ], 
+                                         ignore_index=True) 
+                           for s_ in self.scenarios }
+		print 'Finished loading data'
 		for stat in self.statlist:
 			for scenario in self.scenarios:
-				self.singles(stat,scenario,round1=args.readpkl)
+				self.singles(stat,scenario,from_pkl=False,save_pkl=self.savepkl)
 
 		for i in range(len(self.statlist)-1):
 			for j in range(i+1,len(self.statlist)):
 				for scenario in self.scenarios:
-					self.tuples(self.statlist[i],self.statlist[j],scenario,round1=args.readpkl)
+					self.tuples(self.statlist[i],self.statlist[j],scenario,from_pkl=False,save_pkl=self.savepkl)
 
 	def run_bic(self):
 		for stat in self.statlist:
@@ -212,14 +196,14 @@ class AODE_train():
 		out.close()
 
 	def gmm_fit(self,stat1,stat2,scenario):
-		S = self.tuples(stat1,stat2,scenario)
+		S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
 		G = mixture.GMM(n_components=self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)],covariance_type='full')
 		G.fit(S)
 		pickle.dump(G,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_GMMparams.p','wb'))
 		return G
 
 	def gmm_fit_1D(self,stat,scenario):
-		S = self.singles(stat,scenario)
+		S = self.singles(stat,scenario,from_pkl=self.readpkl)
 		G = mixture.GMM(n_components=self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)])
 		G.fit(S)
 		pickle.dump(G,open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','wb'))
@@ -317,6 +301,7 @@ if __name__ == '__main__':
 	matplotlib.use('agg')
 	from matplotlib import pyplot as plt
 	import numpy as np
+	import pandas as pd
 	from sklearn import mixture
 	from matplotlib.mlab import bivariate_normal
 	from matplotlib.mlab import normpdf
@@ -325,7 +310,8 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--path',action='store',dest='path2files',default='') #path to all input files (simulations in a 'simulations' directory, and compstats, scenarios files)
 	parser.add_argument('--retrain',action='store_true',dest='retrain')
-	parser.add_argument('--readpkl',action='store_false',dest='readpkl')
+	parser.add_argument('--readpkl',action='store_true',dest='readpkl')
+    parser.add_argument('--savepkl',action='store_true',dest='savepkl',help="Save distributions as PKLs.")
 	parser.add_argument('--stats2use',action='store',nargs='+',default=[]) #use to split training into parallel runs, only with --retrain
 
 	args = parser.parse_args()
