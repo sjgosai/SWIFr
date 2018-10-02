@@ -11,8 +11,8 @@ class AODE_train():
 		self.retrain = args.retrain
 		self.readpkl = args.readpkl
 		self.savepkl = args.savepkl
-        self.singles_dict = {}
-        self.tuples_dict  = {}
+		self.singles_dict = {}
+		self.tuples_dict  = {}
 		self.path2allstats = args.path2files
 		if self.path2allstats != '' and self.path2allstats[-1] != '/':
 			self.path2allstats += '/'
@@ -323,7 +323,7 @@ if __name__ == '__main__':
 	parser.add_argument('--path',action='store',dest='path2files',default='') #path to all input files (simulations in a 'simulations' directory, and compstats, scenarios files)
 	parser.add_argument('--retrain',action='store_true',dest='retrain')
 	parser.add_argument('--readpkl',action='store_true',dest='readpkl')
-    parser.add_argument('--savepkl',action='store_true',dest='savepkl',help="Save distributions as PKLs.")
+	parser.add_argument('--savepkl',action='store_true',dest='savepkl',help="Save distributions as PKLs.")
 	parser.add_argument('--stats2use',action='store',nargs='+',default=[]) #use to split training into parallel runs, only with --retrain
 
 	args = parser.parse_args()
