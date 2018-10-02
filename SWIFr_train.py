@@ -43,8 +43,8 @@ class AODE_train():
 		else:
 			self.statlist = [x for x in allstats if x in args.stats2use]
 
-		self.minscores = [[np.nan] for i in range(len(self.statlist))]
-		self.maxscores = [[np.nan] for i in range(len(self.statlist))]
+		self.minscores = [[] for i in range(len(self.statlist))]
+		self.maxscores = [[] for i in range(len(self.statlist))]
 
 		self.num2stat = {i:self.statlist[i] for i in range(len(self.statlist))}
 		self.stat2num = {y:x for x,y in self.num2stat.items()}		
@@ -66,42 +66,43 @@ class AODE_train():
 
 
 	def tuples(self,stat1,stat2,scenario,from_pkl=False,save_pkl=False):
-		stat = "{}-{}".format(stat1,stat2)
+		hkey = "{}-{}-{}".format(stat1,stat2,scenario)
 		try: # If you hate this, replace with "if stat in self.singles_dict.keys():"
-			scores = self.tuples_dict[stat]
+			scores = self.tuples_dict[hkey]
 		except KeyError: # Change this to an "else:" However, querrying a dict is fast, checking a list is slow
 			if from_pkl == True:
 				print 'reading from PKL: '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
-				self.tuples_dict[stat] = pd.read_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
+				self.tuples_dict[hkey] = pd.read_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
 			else:
 				mask   = (self.train_data[scenario][stat1] != -998) & (self.train_data[scenario][stat2] != -998)
-				self.tuples_dict[stat] = self.train_data[scenario].loc[mask, (stat1,stat2)]
+				self.tuples_dict[hkey] = self.train_data[scenario].loc[mask, (stat1,stat2)]
 				if save_pkl == True:
 					print 'saving '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
-					self.tuples_dict[stat].to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
-			scores = self.tuples_dict[stat]
+					self.tuples_dict[hkey].to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
+			scores = self.tuples_dict[hkey]
 		return np.array(scores)
 
 	def singles(self,stat,scenario,from_pkl=False,save_pkl=False):
+		hkey = "{}-{}".format(stat,scenario)
 		try: # If you hate this, replace with "if stat in self.singles_dict.keys():"
-			scores = self.singles_dict[stat]
+			scores = self.singles_dict[hkey]
 		except KeyError: # Change this to an "else:" However, querrying a dict is fast, checking a list is slow
 			if from_pkl == True:
 				print 'reading from PKL: '+scenario+' marginal distributions for '+stat+'...'
-				self.singles_dict[stat] = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+				self.singles_dict[hkey] = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
 			else:
 				mask   = self.train_data[scenario][stat] != -998
-				self.singles_dict[stat] = self.train_data[scenario].loc[mask, stat]
+				self.singles_dict[hkey] = self.train_data[scenario].loc[mask, stat]
 				if save_pkl == True:
 					print 'saving '+scenario+' marginal distributions for '+stat+'...'
-					self.singles_dict[stat].to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
-			scores = self.singles_dict[stat]
+					self.singles_dict[hkey].to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+			scores = self.singles_dict[hkey]
 		SCORES = np.expand_dims(np.array(scores), axis=1)
 		minscore = min(SCORES)[0]
 		maxscore = max(SCORES)[0]
 		RANGE = maxscore-minscore
-		self.minscores[self.stat2num[stat]][0] = minscore
-		self.maxscores[self.stat2num[stat]][0] = maxscore
+		self.minscores[self.stat2num[stat]].append(minscore)
+		self.maxscores[self.stat2num[stat]].append(maxscore)
 		return np.expand_dims(np.array(scores), axis=1)
 
 	def plot_bic(self,stat1,stat2,scenario):
