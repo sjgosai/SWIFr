@@ -1,3 +1,74 @@
+def _plot_bic(stat1,stat2,scenario,S,path2files=''):
+	'''
+	Global version of the plot_bic function to allow multiprocessing
+	Really only usable by the AODE_train class
+	'''
+	if S is None:
+		S = np.array(pd.read_pickle(path2files+'AODE_params/'+stat1+'_'+stat2+'_'+scenario+'_tuples.p'))
+	#S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
+	best_BIC = np.inf
+	BICs_full = []
+	for n in range(1,11):
+		H = mixture.GMM(n_components=n,covariance_type='full')
+		H.fit(S)
+		#AICs_full.append(H.aic(S))
+		BICs_full.append(H.bic(S))
+		if BICs_full[-1] < best_BIC:
+			best_fit = H
+			best_BIC = BICs_full[-1]
+	minbic = min(BICs_full)
+	argminbic = BICs_full.index(minbic)+1
+	print 'number of components for '+scenario+': '+str(argminbic)
+	plt.plot(range(1,11),BICs_full,'o-',color='darkblue',ms=5,markeredgecolor='none')
+	plt.plot(argminbic,minbic,'o-',color='coral',ms=5,markeredgecolor='red')
+	plt.xlabel('number of Gaussian mixture components')
+	plt.ylabel('BIC')
+	plt.savefig(path2files+'BIC_plots/'+stat1+'_'+stat2+'_'+scenario+'_BIC.pdf')
+	plt.clf()
+	pickle.dump(best_fit,open(path2files+'AODE_params/'+stat1+'_'+stat2+'_'+scenario+'_GMMparams.p','wb'))
+	return argminbic
+	#self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic
+
+def _plot_bic_1D(stat,scenario,S,path2files=''):
+	'''
+	Global version of the plot_bic_1D function to allow multiprocessing
+	Really only usable by the AODE_train class
+	'''
+	if S is None:
+		S = np.expand_dims(np.array(pd.read_pickle(path2files+'AODE_params/'+stat+'_'+scenario+'_singles.p')), axis=1)
+	#S = self.singles(stat,scenario,from_pkl=self.readpkl)
+	best_BIC = np.inf
+	BICs = []
+	for n in range(1,11):
+		H = mixture.GMM(n_components=n)
+		H.fit(S)
+		#AICs.append(H.aic(S))
+		BICs.append(H.bic(S))
+		if BICs[-1] < best_BIC:
+			best_fit = H
+			best_BIC = BICs[-1]
+	minbic = min(BICs)
+	argminbic = BICs.index(minbic)+1
+	print 'number of components for '+scenario+': '+str(argminbic)			
+	plt.xlabel('number of Gaussian mixture components')
+	plt.ylabel('BIC')
+	plt.plot(range(1,11),BICs,'o-',color='darkblue',ms=5,markeredgecolor='none')
+	plt.plot(argminbic,minbic,'o-',color='coral',ms=5,markeredgecolor='red')
+	plt.savefig(path2files+'BIC_plots/'+stat+'_'+scenario+'_BIC.pdf')
+	plt.clf()
+	pickle.dump(best_fit,open(path2files+'AODE_params/'+stat+'_'+scenario+'_1D_GMMparams.p','wb'))
+	return argminbic
+	#self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
+
+# Wrapper for function selection and argument unpacking
+def _plot_all_bic_(intup):
+	if intup[1] is None:
+		retup = (intup[0],intup[2],intup[3],intup[4])
+		return _plot_bic_1D(*retup)
+	else:
+		return _plot_bic(*intup)
+
+
 class AODE_train():
 	'''
 	Given directory with component_stats.txt, scenarios.txt, and subdirectory simulations/
@@ -10,7 +81,10 @@ class AODE_train():
 	def __init__(self,args):
 		self.retrain = args.retrain
 		self.readpkl = args.readpkl
-		self.savepkl = args.savepkl
+		self.savepkl = True
+		self.processes = args.processes
+		if self.processes < 2:
+			raise ValueError, "Use 2 or more if invoking '--multiprocess'"
 		self.singles_dict = {}
 		self.tuples_dict  = {}
 		self.path2allstats = args.path2files
@@ -105,8 +179,8 @@ class AODE_train():
 		self.maxscores[self.stat2num[stat]].append(maxscore)
 		return np.expand_dims(np.array(scores), axis=1)
 
-	def plot_bic(self,stat1,stat2,scenario):
-		S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
+	def plot_bic(self,stat1,stat2,scenario,S):
+		#S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
 		BICs_full = []
 		for n in range(1,11):
 			H = mixture.GMM(n_components=n,covariance_type='full')
@@ -122,18 +196,17 @@ class AODE_train():
 		plt.ylabel('BIC')
 		plt.savefig(self.path2files+'BIC_plots/'+stat1+'_'+stat2+'_'+scenario+'_BIC.pdf')
 		plt.clf()
+		return (self.stat2num[stat1], self.stat2num[stat2], self.scenarios.index(scenario), argminbic)
+		#self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic
 
-		self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic
-
-	def plot_bic_1D(self,stat,scenario):
-		S = self.singles(stat,scenario,from_pkl=self.readpkl)
+	def plot_bic_1D(self,stat,scenario,S):
+		#S = self.singles(stat,scenario,from_pkl=self.readpkl)
 		BICs = []
 		for n in range(1,11):
 			H = mixture.GMM(n_components=n)
 			H.fit(S)
 			#AICs.append(H.aic(S))
 			BICs.append(H.bic(S))
-
 		minbic = min(BICs)
 		argminbic = BICs.index(minbic)+1
 		print 'number of components for '+scenario+': '+str(argminbic)			
@@ -143,7 +216,8 @@ class AODE_train():
 		plt.plot(argminbic,minbic,'o-',color='coral',ms=5,markeredgecolor='red')
 		plt.savefig(self.path2files+'BIC_plots/'+stat+'_'+scenario+'_BIC.pdf')
 		plt.clf()
-		self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
+		return (self.stat2num[stat], None, self.scenarios.index(scenario), argminbic)
+		#self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
 
 	def read_in_all(self):
 		print 'Begin reading all training data'
@@ -169,14 +243,20 @@ class AODE_train():
 		for stat in self.statlist:
 			print 'learning number of Gaussian mixture components for '+stat
 			for scenario in self.scenarios:
-				self.plot_bic_1D(stat,scenario)
+				s2n0, _, scen, amb = self.plot_bic_1D(stat,scenario,
+                                                      self.singles(stat,scenario,from_pkl=self.readpkl))
+				self.component_nums_1D[s2n0][scen] = amb
 
 		for i in range(len(self.statlist)-1):
 			for j in range(i+1,len(self.statlist)):
 				print 'learning number of Gaussian mixture components for joint '+self.statlist[i]+', '+self.statlist[j]
 				for scenario in self.scenarios:
-					self.plot_bic(self.statlist[i],self.statlist[j],scenario)
-
+					s2n1, s2n2, scen, amb = self.plot_bic(self.statlist[i],self.statlist[j],scenario,
+                                                          self.tuples(self.statlist[i],self.statlist[j],
+                                                                      scenario,from_pkl=self.readpkl)
+                                                         )
+					self.component_nums_2D[s2n1][s2n2][scen] = amb
+		#
 		#write marginal component_nums file
 		out = open(self.path2AODE+'marginal_component_nums','w')
 		header = 'statistic\t'
@@ -191,7 +271,71 @@ class AODE_train():
 			line = line.strip()
 			out.write(line+'\n')
 		out.close()
+		#
+		#write joint component_nums file
+		out = open(self.path2AODE+'joint_component_nums','w')
+		header = 'stat1\tstat1\t'
+		for scenario in self.scenarios:
+			header += scenario+'\t'
+		header = header.strip()
+		out.write(header+'\n')
+		for i in range(len(self.component_nums_2D)-1):
+			for j in range(i+1,len(self.component_nums_2D[i])):
+				line = self.num2stat[i]+'\t'+self.num2stat[j]+'\t'
+				for scenario in self.scenarios:
+					line += str(self.component_nums_2D[i][j][self.scenarios.index(scenario)])+'\t'
+				line = line.strip()
+				out.write(line+'\n')
+		out.close()
 
+	def run_bic_mp(self): # multiprocess version of run_bic
+		task_spec_1D = []
+		task_spec_2D = []
+		for stat in self.statlist:
+			print 'learning number of Gaussian mixture components for '+stat
+			for scenario in self.scenarios:
+				#self.plot_bic_1D(stat,scenario)
+				task_spec_1D.append( (stat,scenario) )
+		#
+		for i in range(len(self.statlist)-1):
+			for j in range(i+1,len(self.statlist)):
+				print 'learning number of Gaussian mixture components for joint '+self.statlist[i]+', '+self.statlist[j]
+				for scenario in self.scenarios:
+					#self.plot_bic(self.statlist[i],self.statlist[j],scenario)
+					task_spec_2D.append( (self.statlist[i],self.statlist[j],scenario) )
+		#
+		p = Pool(processes=self.processes)
+		task_1D = [ (stat, None, scenario, None, self.path2files) 
+                    for stat,scenario in task_spec_1D ]
+		task_2D = [ (stat1, stat2, scenario, None, self.path2files) 
+                     for stat1, stat2, scenario in task_spec_2D ]
+		data = p.map(_plot_all_bic_, task_1D+task_2D)
+		p.close()
+		p.join()
+		data_1D = data[:len(task_1D)]
+		data_2D = data[len(task_1D):]
+		for argminbic, task_spec in zip(data_1D, task_1D):
+			stat, _, scenario, _, _ = task_spec
+			self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
+		for argminbic, task_spec in zip(data_2D, task_2D):
+			stat1, stat2, scenario, _, _ = task_spec
+			self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic
+		#
+		#write marginal component_nums file
+		out = open(self.path2AODE+'marginal_component_nums','w')
+		header = 'statistic\t'
+		for scenario in self.scenarios:
+			header += scenario+'\t'
+		header = header.strip()
+		out.write(header+'\n')
+		for i in range(len(self.component_nums_1D)):
+			line = self.num2stat[i]+'\t'
+			for scenario in self.scenarios:
+				line += str(self.component_nums_1D[i][self.scenarios.index(scenario)])+'\t'
+			line = line.strip()
+			out.write(line+'\n')
+		out.close()
+		#
 		#write joint component_nums file
 		out = open(self.path2AODE+'joint_component_nums','w')
 		header = 'stat1\tstat1\t'
@@ -209,17 +353,23 @@ class AODE_train():
 		out.close()
 
 	def gmm_fit(self,stat1,stat2,scenario):
-		S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
-		G = mixture.GMM(n_components=self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)],covariance_type='full')
-		G.fit(S)
-		pickle.dump(G,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_GMMparams.p','wb'))
+		if self.processes is None:
+			S = self.tuples(stat1,stat2,scenario,from_pkl=self.readpkl)
+			G = mixture.GMM(n_components=self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)],covariance_type='full')
+			G.fit(S)
+			pickle.dump(G,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_GMMparams.p','wb'))
+		else:
+			G = pickle.load( open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_GMMparams.p','rb') )
 		return G
 
 	def gmm_fit_1D(self,stat,scenario):
-		S = self.singles(stat,scenario,from_pkl=self.readpkl)
-		G = mixture.GMM(n_components=self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)])
-		G.fit(S)
-		pickle.dump(G,open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','wb'))
+		if self.processes is None:
+			S = self.singles(stat,scenario,from_pkl=self.readpkl)
+			G = mixture.GMM(n_components=self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)])
+			G.fit(S)
+			pickle.dump(G,open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','wb'))
+		else:
+			G = pickle.load( open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','rb') )
 		return G
 
 	def plot_gmm_marginals(self,stat):
@@ -308,7 +458,8 @@ class AODE_train():
 
 if __name__ == '__main__':
 	from scipy.stats import norm
-	import math,sys,argparse, pickle, os
+	import math,sys,argparse, pickle, os, gc
+	from multiprocessing import Pool
 	sys.path.append(os.getcwd())	
 	import matplotlib
 	matplotlib.use('agg')
@@ -326,6 +477,7 @@ if __name__ == '__main__':
 	parser.add_argument('--readpkl',action='store_true',dest='readpkl')
 	parser.add_argument('--savepkl',action='store_true',dest='savepkl',help="Save distributions as PKLs.")
 	parser.add_argument('--stats2use',action='store',nargs='+',default=[]) #use to split training into parallel runs, only with --retrain
+	parser.add_argument('--multiprocess',type=int,dest='processes')
 
 	args = parser.parse_args()
 	A = AODE_train(args)
@@ -334,7 +486,12 @@ if __name__ == '__main__':
 		A.retrain_classifier()
 		print 'Training complete. Run SWIFr.py with --path2trained '+args.path2files
 	else:
-		A.run_bic()
+		if args.processes is None:
+			A.run_bic()
+		else:
+			A.train_data = None
+			gc.collect()
+			A.run_bic_mp()
 		A.plot_contours()
 		print 'Training complete. Run SWIFr.py with --path2trained '+args.path2files
 
