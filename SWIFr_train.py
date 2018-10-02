@@ -11,6 +11,8 @@ class AODE_train():
 		self.retrain = args.retrain
 		self.readpkl = args.readpkl
 		self.savepkl = args.savepkl
+        self.singles_dict = {}
+        self.tuples_dict  = {}
 		self.path2allstats = args.path2files
 		if self.path2allstats != '' and self.path2allstats[-1] != '/':
 			self.path2allstats += '/'
@@ -64,28 +66,36 @@ class AODE_train():
 
 
 	def tuples(self,stat1,stat2,scenario,from_pkl=False,save_pkl=False):
-		if from_pkl == True:
-			print 'reading from PKL: '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
-			scores = pd.read_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
-		else:
-			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
-			scores = []
-			mask   = (self.train_data[scenario][stat1] != -998) & (self.train_data[scenario][stat2] != -998)
-			scores = self.train_data[scenario].loc[mask, (stat1,stat2)]
-			if save_pkl == True:
-				scores.to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
+		stat = "{}-{}".format(stat1,stat2)
+		try: # If you hate this, replace with "if stat in self.singles_dict.keys():"
+			scores = self.tuples_dict[stat]
+		except KeyError: # Change this to an "else:" However, querrying a dict is fast, checking a list is slow
+			if from_pkl == True:
+				print 'reading from PKL: '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
+				self.tuples_dict[stat] = pd.read_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
+			else:
+				mask   = (self.train_data[scenario][stat1] != -998) & (self.train_data[scenario][stat2] != -998)
+				self.tuples_dict[stat] = self.train_data[scenario].loc[mask, (stat1,stat2)]
+				if save_pkl == True:
+					print 'saving '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
+					self.tuples_dict[stat].to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
+			scores = self.tuples_dict[stat]
 		return np.array(scores)
 
 	def singles(self,stat,scenario,from_pkl=False,save_pkl=False):
-		if from_pkl == True:
-			print 'reading from PKL: '+scenario+' marginal distributions for '+stat+'...'
-			scores = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
-		else:
-			mask   = self.train_data[scenario][stat] != -998
-			scores = self.train_data[scenario].loc[mask, stat]
-			if save_pkl == True:
-				print 'saving '+scenario+' marginal distributions for '+stat+'...'
-				scores.to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+		try: # If you hate this, replace with "if stat in self.singles_dict.keys():"
+			scores = self.singles_dict[stat]
+		except KeyError: # Change this to an "else:" However, querrying a dict is fast, checking a list is slow
+			if from_pkl == True:
+				print 'reading from PKL: '+scenario+' marginal distributions for '+stat+'...'
+				self.singles_dict[stat] = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+			else:
+				mask   = self.train_data[scenario][stat] != -998
+				self.singles_dict[stat] = self.train_data[scenario].loc[mask, stat]
+				if save_pkl == True:
+					print 'saving '+scenario+' marginal distributions for '+stat+'...'
+					self.singles_dict[stat].to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+			scores = self.singles_dict[stat]
 		SCORES = np.expand_dims(np.array(scores), axis=1)
 		minscore = min(SCORES)[0]
 		maxscore = max(SCORES)[0]
@@ -143,6 +153,8 @@ class AODE_train():
                                          ignore_index=True) 
                            for s_ in self.scenarios }
 		print 'Finished loading data'
+		if self.savepkl == False:
+			print 'skip distribution pickling'
 		for stat in self.statlist:
 			for scenario in self.scenarios:
 				self.singles(stat,scenario,from_pkl=False,save_pkl=self.savepkl)
