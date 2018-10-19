@@ -311,6 +311,8 @@ if __name__ == '__main__':
 	from scipy.stats import norm
 	import math,sys,argparse, pickle, os
 	sys.path.append(os.getcwd())	
+	import matplotlib
+	matplotlib.use('agg')
 	from matplotlib import pyplot as plt
 	import numpy as np
 	from sklearn import mixture
