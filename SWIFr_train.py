@@ -68,9 +68,11 @@ class AODE_train():
 		else:
 			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
 			scores = []
-
 			for filename in os.listdir(self.path2allstats+scenario+'/'):
 				if filename[0] != '.':
+					df = pd.read_table(filename,header=0,index_col=False)
+					scores = df.loc[:,[stat1,stat2]]
+					"""
 					file = open(self.path2allstats+scenario+'/'+filename,'r')
 					f = file.read()
 					file.close()
@@ -83,8 +85,9 @@ class AODE_train():
 						score2 = float(line[header.index(stat2)])
 						if score1 != -998 and score2 != -998:
 							scores.append((score1,score2))
-
-			pickle.dump(scores,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','wb'))
+					"""
+			scores.to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
+			#pickle.dump(scores,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','wb'))
 		return np.array(scores)
 
 	def singles(self,stat,scenario,round1=False):
@@ -95,6 +98,9 @@ class AODE_train():
 			scores = []
 			for filename in os.listdir(self.path2allstats+scenario+'/'):
 				if filename[0] != '.':
+					df = pd.read_table(filename,header=0,index_col=False)
+					scores = df.loc[:,[stat]]
+					"""
 					file = open(self.path2allstats+scenario+'/'+filename,'r')
 					f = file.read()
 					file.close()
@@ -106,8 +112,9 @@ class AODE_train():
 						score = float(line[header.index(stat)])
 						if score != -998:
 							scores.append([score])
-						
-			pickle.dump(scores,open(self.path2AODE+stat+'_'+scenario+'_singles.p','wb'))
+					"""
+			scores.to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
+			#pickle.dump(scores,open(self.path2AODE+stat+'_'+scenario+'_singles.p','wb'))
 		SCORES = np.array(scores)
 		minscore = min(SCORES)[0]
 		maxscore = max(SCORES)[0]
@@ -319,6 +326,7 @@ if __name__ == '__main__':
 	from matplotlib.mlab import bivariate_normal
 	from matplotlib.mlab import normpdf
 	import matplotlib.cm as cm 	
+	import pandas as pd
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--path',action='store',dest='path2files',default='') #path to all input files (simulations in a 'simulations' directory, and compstats, scenarios files)
