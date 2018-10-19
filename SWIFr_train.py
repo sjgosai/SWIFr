@@ -138,12 +138,10 @@ class AODE_train():
 
 		else:
 			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
+			"""
 			scores = []
 			for filename in os.listdir(self.path2allstats+scenario+'/'):
 				if filename[0] != '.':
-					df = pd.read_table(filename,header=0,index_col=False)
-					scores = df.loc[:,[stat1,stat2]]
-					"""
 					file = open(self.path2allstats+scenario+'/'+filename,'r')
 					f = file.read()
 					file.close()
@@ -156,7 +154,11 @@ class AODE_train():
 						score2 = float(line[header.index(stat2)])
 						if score1 != -998 and score2 != -998:
 							scores.append((score1,score2))
-					"""
+			"""
+			df_set = [ pd.read_table(self.path2allstats+scenario+'/'+filename,header=0,index_col=False) 
+				   for filename in os.listdir(self.path2allstats+scenario+'/') 
+				   if filename[0] != '.' ]
+			scores = df.loc[:,[stat1,stat2]]
 			scores.to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
 			#pickle.dump(scores,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','wb'))
 		return np.array(scores)
@@ -166,12 +168,10 @@ class AODE_train():
 			scores = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
 		else:
 			print 'learning '+scenario+' marginal distributions for '+stat+'...'
+			"""
 			scores = []
 			for filename in os.listdir(self.path2allstats+scenario+'/'):
 				if filename[0] != '.':
-					df = pd.read_table(filename,header=0,index_col=False)
-					scores = df.loc[:,[stat]]
-					"""
 					file = open(self.path2allstats+scenario+'/'+filename,'r')
 					f = file.read()
 					file.close()
@@ -183,7 +183,12 @@ class AODE_train():
 						score = float(line[header.index(stat)])
 						if score != -998:
 							scores.append([score])
-					"""
+			"""
+			df_set = [ pd.read_table(self.path2allstats+scenario+'/'+filename,header=0,index_col=False) 
+				   for filename in os.listdir(self.path2allstats+scenario+'/') 
+				   if filename[0] != '.' ]
+			df = pd.concat( df_set, ignore_index=True )
+			scores = df.loc[:,[stat]]
 			scores.to_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
 			#pickle.dump(scores,open(self.path2AODE+stat+'_'+scenario+'_singles.p','wb'))
 		SCORES = np.array(scores)
@@ -291,7 +296,7 @@ class AODE_train():
 		# Collect tasks
 		task_set = []
 		for stat in self.statlist:
-			or scenario in self.scenarios:
+			for scenario in self.scenarios:
 				task_set.append( [stat,None,scenario,self.path2files] )
 				stat1,stat2,scenario,path2files=''
 		"""		
