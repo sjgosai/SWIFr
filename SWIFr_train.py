@@ -17,7 +17,6 @@ def _plot_bic(stat1,stat2,scenario,path2files=''):
 			best_BIC = BICs_full[-1]
 	minbic = min(BICs_full)
 	argminbic = BICs_full.index(minbic)+1
-	print 'number of components for '+scenario+': '+str(argminbic)
 	plt.plot(range(1,11),BICs_full,'o-',color='darkblue',ms=5,markeredgecolor='none')
 	plt.plot(argminbic,minbic,'o-',color='coral',ms=5,markeredgecolor='red')
 	plt.xlabel('number of Gaussian mixture components')
@@ -47,7 +46,6 @@ def _plot_bic_1D(stat,scenario,path2files=''):
 			best_BIC = BICs[-1]
 	minbic = min(BICs)
 	argminbic = BICs.index(minbic)+1
-	print 'number of components for '+scenario+': '+str(argminbic)			
 	plt.xlabel('number of Gaussian mixture components')
 	plt.ylabel('BIC')
 	plt.plot(range(1,11),BICs,'o-',color='darkblue',ms=5,markeredgecolor='none')
@@ -61,7 +59,7 @@ def _plot_bic_1D(stat,scenario,path2files=''):
 # Wrapper for function selection and argument unpacking
 def _plot_all_bic_(intup):
 	if intup[1] is None:
-		retup = (intup[0],intup[2],intup[3],intup[4])
+		retup = (intup[0],intup[2],intup[3])
 		return _plot_bic_1D(*retup)
 	else:
 		return _plot_bic(*intup)
@@ -77,6 +75,7 @@ class AODE_train():
 
 	def __init__(self,args):
 		self.retrain = args.retrain
+		self.processes = args.processes
 		if args.processes is None:
 			self.mp = False
 		else:
@@ -129,7 +128,7 @@ class AODE_train():
 			os.mkdir(self.path2files+'component_statistic_distributions')
 			os.mkdir(self.path2files+'component_statistic_distributions/marginals')
 			os.mkdir(self.path2files+'component_statistic_distributions/joints')
-		self.read_in_all()
+		self.read_in_all(args.read_pkl)
 
 
 	def tuples(self,stat1,stat2,scenario,round1=False):
@@ -158,6 +157,7 @@ class AODE_train():
 			df_set = [ pd.read_table(self.path2allstats+scenario+'/'+filename,header=0,index_col=False) 
 				   for filename in os.listdir(self.path2allstats+scenario+'/') 
 				   if filename[0] != '.' ]
+			df = pd.concat( df_set, ignore_index=True )
 			scores = df.loc[:,[stat1,stat2]]
 			scores.to_pickle(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p')
 			#pickle.dump(scores,open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_tuples.p','wb'))
@@ -239,15 +239,18 @@ class AODE_train():
 		plt.clf()
 		self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
 
-	def read_in_all(self):
-		for stat in self.statlist:
-			for scenario in self.scenarios:
-				self.singles(stat,scenario,round1=True)
-
-		for i in range(len(self.statlist)-1):
-			for j in range(i+1,len(self.statlist)):
+	def read_in_all(self,read_pkl):
+		if not read_pkl:
+			for stat in self.statlist:
 				for scenario in self.scenarios:
-					self.tuples(self.statlist[i],self.statlist[j],scenario,round1=True)
+					self.singles(stat,scenario,round1=True)
+
+			for i in range(len(self.statlist)-1):
+				for j in range(i+1,len(self.statlist)):
+					for scenario in self.scenarios:
+						self.tuples(self.statlist[i],self.statlist[j],scenario,round1=True)
+		else:
+			print 'reading off of pickles'
 
 	def run_bic(self):
 		for stat in self.statlist:
@@ -296,10 +299,10 @@ class AODE_train():
 		# Collect tasks
 		task_set = []
 		for stat in self.statlist:
+			print 'learning number of Gaussian mixture components for '+stat
 			for scenario in self.scenarios:
 				task_set.append( [stat,None,scenario,self.path2files] )
-				stat1,stat2,scenario,path2files=''
-		"""		
+		"""	
 		for stat in self.statlist:
 			print 'learning number of Gaussian mixture components for '+stat
 			for scenario in self.scenarios:
@@ -319,6 +322,7 @@ class AODE_train():
 					self.plot_bic(self.statlist[i],self.statlist[j],scenario)
 		"""
 		# Deploy and collect tasks
+		print task_set
 		p = Pool(processes=self.processes)
 		data = p.map(_plot_all_bic_, task_set)
 		p.close()
@@ -487,6 +491,7 @@ if __name__ == '__main__':
 	parser.add_argument('--retrain',action='store_true',dest='retrain')
 	parser.add_argument('--stats2use',action='store',nargs='+',default=[]) #use to split training into parallel runs, only with --retrain
 	parser.add_argument('--multiprocess','-p',type=int,dest='processes')
+	parser.add_argument('--read_pkl','-r',action='store_true')
 
 	args = parser.parse_args()
 	A = AODE_train(args)
