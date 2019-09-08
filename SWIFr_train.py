@@ -323,18 +323,22 @@ class AODE_train():
 		"""
 		# Deploy and collect tasks
 		print task_set
+		print 'Completed task pool'
 		p = Pool(processes=self.processes)
 		data = p.map(_plot_all_bic_, task_set)
 		p.close()
 		p.join()
 		# Organize results
+		print 'organizing results'
 		for argminbic, task_spec in zip(data, task_set):
-			if task_set[1] is None:
+			if task_spec[1] is None:
 				stat, _, scenario, _ = task_spec
+				print '1D - component: ' + stat + ' scenario: ' + scenario
 				self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)] = argminbic
 			else:
 				stat1, stat2, scenario, _ = task_spec
-				self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic
+				print '2D - component1: ' + stat1 + ' component2: ' + stat2 + ' scenario: ' + scenario
+				self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)] = argminbic	
 		#write marginal component_nums file
 		out = open(self.path2AODE+'marginal_component_nums','w')
 		header = 'statistic\t'
@@ -370,7 +374,7 @@ class AODE_train():
 	def gmm_fit(self,stat1,stat2,scenario):
 		S = self.tuples(stat1,stat2,scenario)
 		if self.mp == True:
-			G = pickle.load( open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','rb') )
+			G = pickle.load( open(self.path2AODE+stat1+'_'+stat2+'_'+scenario+'_GMMparams.p','rb') )
 		else:
 			G = mixture.GMM(n_components=self.component_nums_2D[self.stat2num[stat1]][self.stat2num[stat2]][self.scenarios.index(scenario)],covariance_type='full')
 			G.fit(S)
@@ -380,11 +384,11 @@ class AODE_train():
 	def gmm_fit_1D(self,stat,scenario):
 		S = self.singles(stat,scenario)
 		if self.mp == True:
-			G = pickle.load(G,open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','rb'))
+			G = pickle.load(open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','rb'))
 		else:
 			G = mixture.GMM(n_components=self.component_nums_1D[self.stat2num[stat]][self.scenarios.index(scenario)])
 			G.fit(S)
-			pickle.dump(G,open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','wb'))
+			pickle.dump(open(self.path2AODE+stat+'_'+scenario+'_1D_GMMparams.p','wb'))
 		return G
 
 	def plot_gmm_marginals(self,stat):
