@@ -20,6 +20,9 @@ Pandas v0.23.4 (https://pandas.pydata.org/)
 If you have a working `conda` installation, you can use the included environment specs to install all required packages:  
 >```conda env create -f conda_env.yml```
 
+Activate for use with:
+>```source activate swifr```
+
 ### Contents:
 This directory contains the following:
 1. SWIFr_train.py - source code for training SWIFr on a set of statistics calculated on simulated data
