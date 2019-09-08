@@ -15,6 +15,9 @@ Matplotlib v1.7 (http://matplotlib.org/)
 SciPy v0.16 (https://www.scipy.org/)  
 Scikit-learn v0.17 (http://scikit-learn.org/)
 
+If you have a working `conda` installation, you can use the included environment specs to install all required packages:
+```conda env create -f conda_env.yml```
+
 ### Contents:
 This directory contains the following:
 1. SWIFr_train.py - source code for training SWIFr on a set of statistics calculated on simulated data
