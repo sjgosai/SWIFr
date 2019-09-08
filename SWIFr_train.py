@@ -137,23 +137,6 @@ class AODE_train():
 
 		else:
 			print 'learning '+scenario+' joint distributions for '+stat1+' and '+stat2+'...'
-			"""
-			scores = []
-			for filename in os.listdir(self.path2allstats+scenario+'/'):
-				if filename[0] != '.':
-					file = open(self.path2allstats+scenario+'/'+filename,'r')
-					f = file.read()
-					file.close()
-					f = f.strip().splitlines()
-					header = f[0].strip().split('\t')
-					f = f[1:]
-					for line in f:
-						line = line.strip().split('\t')
-						score1 = float(line[header.index(stat1)])
-						score2 = float(line[header.index(stat2)])
-						if score1 != -998 and score2 != -998:
-							scores.append((score1,score2))
-			"""
 			df_set = [ pd.read_table(self.path2allstats+scenario+'/'+filename,header=0,index_col=False) 
 				   for filename in os.listdir(self.path2allstats+scenario+'/') 
 				   if filename[0] != '.' ]
@@ -168,22 +151,6 @@ class AODE_train():
 			scores = pd.read_pickle(self.path2AODE+stat+'_'+scenario+'_singles.p')
 		else:
 			print 'learning '+scenario+' marginal distributions for '+stat+'...'
-			"""
-			scores = []
-			for filename in os.listdir(self.path2allstats+scenario+'/'):
-				if filename[0] != '.':
-					file = open(self.path2allstats+scenario+'/'+filename,'r')
-					f = file.read()
-					file.close()
-					f = f.strip().splitlines()
-					header = f[0].strip().split('\t')
-					f = f[1:]
-					for line in f:
-						line = line.strip().split('\t')
-						score = float(line[header.index(stat)])
-						if score != -998:
-							scores.append([score])
-			"""
 			df_set = [ pd.read_table(self.path2allstats+scenario+'/'+filename,header=0,index_col=False) 
 				   for filename in os.listdir(self.path2allstats+scenario+'/') 
 				   if filename[0] != '.' ]
@@ -302,32 +269,21 @@ class AODE_train():
 			print 'learning number of Gaussian mixture components for '+stat
 			for scenario in self.scenarios:
 				task_set.append( [stat,None,scenario,self.path2files] )
-		"""	
-		for stat in self.statlist:
-			print 'learning number of Gaussian mixture components for '+stat
-			for scenario in self.scenarios:
-				self.plot_bic_1D(stat,scenario)
-		"""
 
 		for i in range(len(self.statlist)-1):
 			for j in range(i+1,len(self.statlist)):
 				print 'learning number of Gaussian mixture components for joint '+self.statlist[i]+', '+self.statlist[j]
 				for scenario in self.scenarios:
 					task_set.append( [self.statlist[i],self.statlist[j],scenario,self.path2files] )
-		"""
-		for i in range(len(self.statlist)-1):
-			for j in range(i+1,len(self.statlist)):
-				print 'learning number of Gaussian mixture components for joint '+self.statlist[i]+', '+self.statlist[j]
-				for scenario in self.scenarios:
-					self.plot_bic(self.statlist[i],self.statlist[j],scenario)
-		"""
+
 		# Deploy and collect tasks
-		print task_set
-		print 'Completed task pool'
+		#print task_set # Useful for debugging
+		print 'Deploying task pool'
 		p = Pool(processes=self.processes)
 		data = p.map(_plot_all_bic_, task_set)
 		p.close()
 		p.join()
+		print 'Completed task pool'
 		# Organize results
 		print 'organizing results'
 		for argminbic, task_spec in zip(data, task_set):
