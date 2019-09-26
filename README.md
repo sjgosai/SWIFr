@@ -13,10 +13,15 @@ Questions: Contact lauren_alpert@brown.edu or post a git issue
 Python v2.7  
 Matplotlib v1.7 (http://matplotlib.org/)  
 SciPy v0.16 (https://www.scipy.org/)  
-Scikit-learn v0.17 (http://scikit-learn.org/)
+Scikit-learn v0.17 (http://scikit-learn.org/)  
+Numpy v1.10.4 (https://numpy.org/)  
+Pandas v0.23.4 (https://pandas.pydata.org/)
 
-If you have a working `conda` installation, you can use the included environment specs to install all required packages:
-```conda env create -f conda_env.yml```
+If you have a working `conda` installation, you can use the included environment specs to install all required packages:  
+>```conda env create -f conda_env.yml```
+
+Activate for use with:
+>```source activate swifr```
 
 ### Contents:
 This directory contains the following:
