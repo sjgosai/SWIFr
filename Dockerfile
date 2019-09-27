@@ -2,9 +2,7 @@ FROM continuumio/miniconda3
 
 WORKDIR /app
 
-RUN git clone https://github.com/sjgosai/SWIFr.git /app
-
-COPY ./models /app/models
+COPY . /app
 
 RUN apt-get update && \
   conda env create -f conda_env.yml && \
